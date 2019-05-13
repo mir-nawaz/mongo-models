@@ -70,6 +70,29 @@ class MongoModels {
         return MongoModels.dbs[name];
     }
 
+    static async transaction(ctx, execTrnxFunc, args, name = 'default'){
+        
+        const client = MongoModels.clients[name];
+        const session = client.startSession();
+        session.startTransaction();
+
+        try {
+            const opts = { session, returnOriginal: false };
+            ctx.opts = opts;
+
+            let funcRes = await execTrnxFunc.apply(ctx,args);
+
+            await session.commitTransaction();
+            session.endSession();
+            return funcRes;
+        } catch (error) {
+            // log error and throw
+            //console.log('error --> ', error);
+            await session.abortTransaction();
+            session.endSession();
+            throw error; // Rethrow so calling function sees error
+        }
+    }
 
     static count() {
 
